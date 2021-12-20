@@ -20,6 +20,7 @@ package org.apache.flink.api.java.tuple;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.types.NullFieldException;
+import org.apache.flink.util.AbstractID;
 
 
 /**
@@ -41,6 +42,7 @@ public abstract class Tuple implements java.io.Serializable {
 
 	public static final int MAX_ARITY = 25;
 
+	public static final AbstractID id = new AbstractID();
 
 	/**
 	 * Gets the field at the specified position.
