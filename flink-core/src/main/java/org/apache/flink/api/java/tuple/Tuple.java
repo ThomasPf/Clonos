@@ -21,7 +21,7 @@ package org.apache.flink.api.java.tuple;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.types.NullFieldException;
 import org.apache.flink.util.AbstractID;
-
+import org.apache.flink.util.TupleId;
 
 /**
  * The base class of all tuples. Tuples have a fix length and contain a set of fields,
@@ -43,6 +43,15 @@ public abstract class Tuple implements java.io.Serializable {
 	public static final int MAX_ARITY = 25;
 
 	public static final AbstractID id = new AbstractID();
+	private Object tupleId;
+
+	/**
+	 * Gets the tupleID object from the current tuple
+	 * @return
+	 */
+	public AbstractID getTupleId(){
+		return id;
+	}
 
 	/**
 	 * Gets the field at the specified position.
