@@ -63,21 +63,34 @@ class CreditBasedSequenceNumberingViewReader implements BufferAvailabilityListen
 	 */
 	private boolean isRegisteredAsAvailable = false;
 
-	/** The number of available buffers for holding data on the consumer side. */
+	/**
+	 * The number of available buffers for holding data on the consumer side.
+	 */
 	private int numCreditsAvailable;
 
 	private int sequenceNumber = -1;
 	private JobID jobID;
 	private short vertexID;
 
-	CreditBasedSequenceNumberingViewReader(
-			InputChannelID receiverId,
-			int initialCredit,
-			PartitionRequestQueue requestQueue) {
+	private final boolean sensitiveFailureDetectionEnabled;
 
+	CreditBasedSequenceNumberingViewReader(
+		InputChannelID receiverId,
+		int initialCredit,
+		PartitionRequestQueue requestQueue) {
+
+		this(receiverId, initialCredit, requestQueue, true);
+	}
+
+
+	CreditBasedSequenceNumberingViewReader(
+		InputChannelID receiverId,
+		int initialCredit,
+		PartitionRequestQueue requestQueue, boolean sensitiveFailureDetectionEnabled) {
 		this.receiverId = receiverId;
 		this.numCreditsAvailable = initialCredit;
 		this.requestQueue = requestQueue;
+		this.sensitiveFailureDetectionEnabled = sensitiveFailureDetectionEnabled;
 	}
 
 	@Override
@@ -138,8 +151,7 @@ class CreditBasedSequenceNumberingViewReader implements BufferAvailabilityListen
 	 * <p>Returns true only if the next buffer is an event or the reader has both available
 	 * credits and buffers.
 	 *
-	 * @param bufferAndBacklog
-	 * 		current buffer and backlog including information about the next buffer
+	 * @param bufferAndBacklog current buffer and backlog including information about the next buffer
 	 */
 	private boolean isAvailable(BufferAndBacklog bufferAndBacklog) {
 		// BEWARE: this must be in sync with #isAvailable()!
@@ -213,14 +225,23 @@ class CreditBasedSequenceNumberingViewReader implements BufferAvailabilityListen
 
 	@Override
 	public void releaseAllResources(Throwable cause) throws IOException {
-		LOG.info("Reader {} DOES NOT issue release resources call for subpartition view {} (it releases only the available buffers). Instead it sends fail consumer trigger.", this, subpartitionView);
-		subpartitionView.sendFailConsumerTrigger(cause);
+		if (this.sensitiveFailureDetectionEnabled) {
+			LOG.info("Reader {} DOES NOT issue release resources call for subpartition view {} (it releases only the available buffers). Instead it sends fail consumer trigger.", this, subpartitionView);
+			subpartitionView.sendFailConsumerTrigger(cause);
+		} else {
+			this.subpartitionView.releaseAllResources();
+		}
 	}
 
 	@Override
 	public void releaseAllResources() throws IOException {
-		LOG.info("Reader {} issues release resources call for subpartition view {}.", this, subpartitionView);
-		subpartitionView.sendFailConsumerTrigger(null);
+		if (this.sensitiveFailureDetectionEnabled) {
+			LOG.info("Reader {} issues release resources call for subpartition view {}.", this, subpartitionView);
+			subpartitionView.sendFailConsumerTrigger(null);
+		} else {
+			this.subpartitionView.releaseAllResources();
+
+		}
 	}
 
 	@Override

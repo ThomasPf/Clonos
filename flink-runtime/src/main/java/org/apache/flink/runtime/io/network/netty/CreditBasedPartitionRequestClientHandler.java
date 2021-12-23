@@ -60,10 +60,14 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
 
 	private static final Logger LOG = LoggerFactory.getLogger(CreditBasedPartitionRequestClientHandler.class);
 
-	/** Channels, which already requested partitions from the producers. */
+	/**
+	 * Channels, which already requested partitions from the producers.
+	 */
 	private final ConcurrentMap<InputChannelID, RemoteInputChannel> inputChannels = new ConcurrentHashMap<>();
 
-	/** Channels, which will notify the producers about unannounced credit. */
+	/**
+	 * Channels, which will notify the producers about unannounced credit.
+	 */
 	private final ArrayDeque<RemoteInputChannel> inputChannelsWithCredit = new ArrayDeque<>();
 
 	private final AtomicReference<Throwable> channelError = new AtomicReference<>();
@@ -82,8 +86,14 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
 	 */
 	private volatile ChannelHandlerContext ctx;
 
+	private final boolean sensitiveFailureDetectionEnabled;
 
-	public CreditBasedPartitionRequestClientHandler(){
+	public CreditBasedPartitionRequestClientHandler() {
+		this(true);
+	}
+
+	public CreditBasedPartitionRequestClientHandler(boolean sensitiveFailureDetectionEnabled) {
+		this.sensitiveFailureDetectionEnabled = sensitiveFailureDetectionEnabled;
 	}
 
 
@@ -139,8 +149,8 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
 		if (!inputChannels.isEmpty()) {
 			final SocketAddress remoteAddr = ctx.channel().remoteAddress();
 			RemoteTransportException cause = new RemoteTransportException(
-					"Connection unexpectedly closed by remote task manager '" + remoteAddr + "'. "
-						+ "This might indicate that the remote task manager was lost.", remoteAddr);
+				"Connection unexpectedly closed by remote task manager '" + remoteAddr + "'. "
+					+ "This might indicate that the remote task manager was lost.", remoteAddr);
 
 			try {
 				InetSocketAddress inetRemoteAddr = (InetSocketAddress) remoteAddr;
@@ -148,7 +158,8 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
 					if (remoteInputChannel.getConnectionId().getAddress().equals(inetRemoteAddr)) {
 						LOG.debug("Send fail producer trigger to {}.", remoteInputChannel);
 						removeInputChannel(remoteInputChannel);
-						remoteInputChannel.triggerFailProducer(cause);
+						if(this.sensitiveFailureDetectionEnabled)
+							remoteInputChannel.triggerFailProducer(cause);
 						break;
 					}
 				}
@@ -187,7 +198,8 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
 						if (remoteInputChannel.getConnectionId().getAddress().equals(inetRemoteAddr)) {
 							LOG.debug("Send fail producer trigger to {}.", remoteInputChannel);
 							removeInputChannel(remoteInputChannel);
-							remoteInputChannel.triggerFailProducer(cause);
+							if(this.sensitiveFailureDetectionEnabled)
+								remoteInputChannel.triggerFailProducer(cause);
 							break;
 						}
 					}
